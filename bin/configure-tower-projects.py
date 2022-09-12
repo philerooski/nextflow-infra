@@ -288,12 +288,14 @@ class TowerClient:
             KeyError: The 'NXF_TOWER_TOKEN' environment variable isn't defined
             KeyError: The 'NXF_TOWER_API_URL' environment variable isn't defined
         """
-        self.aws = AwsClient()
-        self.vpc = self.aws.get_cfn_stack_outputs(VPC_STACK_NAME)
         self.debug = debug_mode
         # Retrieve Nextflow Tower token from environment
         try:
-            self.tower_token = tower_token or os.environ["NXF_TOWER_TOKEN"]
+            self.tower_token = (
+                tower_token
+                or os.environ.get("NXF_TOWER_TOKEN")
+                or os.environ.get("TOWER_ACCESS_TOKEN")
+            )
         except KeyError as e:
             raise KeyError(
                 "The 'NXF_TOWER_TOKEN' environment variable must "
@@ -301,12 +303,18 @@ class TowerClient:
             ) from e
         # Retrieve Nextflow Tower API URL from environment
         try:
-            self.tower_api_base_url = tower_api_url or os.environ["NXF_TOWER_API_URL"]
-        except KeyError as e:
+            tower_api_url = (
+                tower_api_url
+                or os.environ.get("NXF_TOWER_API_URL")
+                or os.environ.get("TOWER_API_ENDPOINT")
+            )
+            assert tower_api_url is not None
+        except (KeyError, AssertionError) as e:
             raise KeyError(
                 "The 'NXF_TOWER_API_URL' environment variable must "
                 "be defined with a Nextflow Tower API URL."
             ) from e
+        self.tower_api_base_url = tower_api_url
 
     def get_valid_name(self, full_name: str) -> str:
         """Generate Tower-friendly name from full name
@@ -380,7 +388,7 @@ class TowerWorkspace:
         self.org = org
         self.tower = org.tower
         self.stack_name = stack_name
-        self.stack = self.tower.aws.get_cfn_stack_outputs(stack_name)
+        self.stack = self.org.aws.get_cfn_stack_outputs(stack_name)
         self.full_name = stack_name
         self.name = self.tower.get_valid_name(stack_name)
         self.json = self.create()
@@ -528,7 +536,7 @@ class TowerWorkspace:
                 return cred["id"]
         # Otherwise, create a new credentials entry for the project
         secret_arn = self.stack["TowerForgeServiceUserAccessKeySecretArn"]
-        credentials = self.tower.aws.get_secret_value(secret_arn)
+        credentials = self.org.aws.get_secret_value(secret_arn)
         data = {
             "credentials": {
                 "name": self.stack_name,
@@ -585,7 +593,7 @@ class TowerWorkspace:
                 "credentialsId": credentials_id,
                 "config": {
                     "configMode": "Batch Forge",
-                    "region": self.tower.aws.region,
+                    "region": self.org.aws.region,
                     "workDir": f"s3://{self.stack['TowerScratch']}/work",
                     "credentials": None,
                     "computeJobRole": self.stack["TowerForgeBatchWorkJobRoleArn"],
@@ -597,8 +605,8 @@ class TowerWorkspace:
                     "postRunScript": None,
                     "cliPath": None,
                     "forge": {
-                        "vpcId": self.tower.vpc[VPC_STACK_OUTPUT_VID],
-                        "subnets": [self.tower.vpc[o] for o in VPC_STACK_OUTPUT_SIDS],
+                        "vpcId": self.org.vpc[VPC_STACK_OUTPUT_VID],
+                        "subnets": [self.org.vpc[o] for o in VPC_STACK_OUTPUT_SIDS],
                         "fsxMode": "None",
                         "efsMode": "None",
                         "type": model,
@@ -683,6 +691,8 @@ class TowerOrganization:
             projects (Projects): List of projects and their users
             full_name (str): (Optional) Full name of organization
         """
+        self.aws = AwsClient()
+        self.vpc = self.aws.get_cfn_stack_outputs(VPC_STACK_NAME)
         self.tower = tower
         self.full_name = full_name
         self.use_teams = use_teams
