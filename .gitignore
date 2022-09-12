@@ -13,3 +13,7 @@
 
 # Hidden OS files
 .DS_Store
+
+# Hide Python-related files
+__pycache__
+*.pyc
