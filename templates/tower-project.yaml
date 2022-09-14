@@ -127,6 +127,8 @@ Resources:
     Properties:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+        - !Ref TowerForgePolicyArn
+        - !Ref TowerLaunchPolicyArn
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
