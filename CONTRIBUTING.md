@@ -28,17 +28,29 @@ aws configure --profile "<profile-name>"
 
 ### Testing sceptre deployment
 
-If your text editor (_e.g._ Visual Studio Code) or shell (_e.g._ using [`direnv`](https://direnv.net/)) can automatically activate the `pipenv` virtual environment, you can omit the `pipenv shell` command.
-
 ```console
 # Define the AWS CLI profile you want to use for testing
 export AWS_PROFILE="<profile-name>"
 
 # Test the deployment of a specific 'develop' stack
-pipenv run sceptre launch --yes infra-dev/some-stack.yaml
+pipenv run sceptre --var-file src/sceptre/variables/dev.yaml launch --yes infra-dev/some-stack.yaml
 
 # Delete the test deployment of the specific 'develop' stack
-pipenv run sceptre delete --yes infra-dev/some-stack.yaml
+pipenv run sceptre --var-file src/sceptre/variables/dev.yaml delete --yes infra-dev/some-stack.yaml
+```
+
+### Testing Tower configuration
+
+```console
+# Define the AWS CLI profile you want to use for testing
+export AWS_PROFILE="<profile-name>"
+
+# Define the Tower access token and base API URL
+export NXF_TOWER_API_URL="https://tower-dev.sagebionetworks.org/api"
+export NXF_TOWER_TOKEN="..."
+
+# Test the configuration of Tower-Dev with projects-dev
+pipenv run bin/configure-tower-projects.py config/projects-dev/
 ```
 
 ## AWS Accounts
